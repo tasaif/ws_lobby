@@ -1,32 +1,20 @@
-#include <websocketpp/config/asio_no_tls.hpp>
-
-#include <websocketpp/server.hpp>
-
 #include <iostream>
 #include <set>
 
-/*#include <boost/thread.hpp>
-#include <boost/thread/mutex.hpp>
-#include <boost/thread/condition_variable.hpp>*/
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
 #include <websocketpp/common/thread.hpp>
 
 typedef websocketpp::server<websocketpp::config::asio> server;
-
 using websocketpp::connection_hdl;
 using websocketpp::lib::placeholders::_1;
 using websocketpp::lib::placeholders::_2;
 using websocketpp::lib::bind;
-
 using websocketpp::lib::thread;
 using websocketpp::lib::mutex;
 using websocketpp::lib::lock_guard;
 using websocketpp::lib::unique_lock;
 using websocketpp::lib::condition_variable;
-
-/* on_open insert connection_hdl into channel
- * on_close remove connection_hdl from channel
- * on_message queue send to all channels
- */
 
 enum action_type {
     SUBSCRIBE,
@@ -44,26 +32,19 @@ struct action {
     server::message_ptr msg;
 };
 
-class broadcast_server {
+class Lobbyserver {
 public:
-    broadcast_server() {
-        // Initialize Asio Transport
+    Lobbyserver() {
         m_server.init_asio();
-
-        // Register handler callbacks
-        m_server.set_open_handler(bind(&broadcast_server::on_open,this,::_1));
-        m_server.set_close_handler(bind(&broadcast_server::on_close,this,::_1));
-        m_server.set_message_handler(bind(&broadcast_server::on_message,this,::_1,::_2));
+        m_server.set_open_handler(bind(&Lobbyserver::on_open,this,::_1));
+        m_server.set_close_handler(bind(&Lobbyserver::on_close,this,::_1));
+        m_server.set_message_handler(bind(&Lobbyserver::on_message,this,::_1,::_2));
     }
 
     void run(uint16_t port) {
-        // listen on specified port
         m_server.listen(port);
-
-        // Start the server accept loop
         m_server.start_accept();
 
-        // Start the ASIO io_service run loop
         try {
             m_server.run();
         } catch (const std::exception & e) {
@@ -74,7 +55,6 @@ public:
     void on_open(connection_hdl hdl) {
         {
             lock_guard<mutex> guard(m_action_lock);
-            //std::cout << "on_open" << std::endl;
             m_actions.push(action(SUBSCRIBE,hdl));
         }
         m_action_cond.notify_one();
@@ -83,17 +63,14 @@ public:
     void on_close(connection_hdl hdl) {
         {
             lock_guard<mutex> guard(m_action_lock);
-            //std::cout << "on_close" << std::endl;
             m_actions.push(action(UNSUBSCRIBE,hdl));
         }
         m_action_cond.notify_one();
     }
 
     void on_message(connection_hdl hdl, server::message_ptr msg) {
-        // queue message up for sending by processing thread
         {
             lock_guard<mutex> guard(m_action_lock);
-            //std::cout << "on_message" << std::endl;
             m_actions.push(action(MESSAGE,hdl,msg));
         }
         m_action_cond.notify_one();
@@ -144,16 +121,12 @@ private:
 
 int main() {
     try {
-    broadcast_server server_instance;
+    Lobbyserver server_instance;
 
     // Start a thread to run the processing loop
-    thread t(bind(&broadcast_server::process_messages,&server_instance));
-
-    // Run the asio loop with the main thread
+    thread t(bind(&Lobbyserver::process_messages,&server_instance));
     server_instance.run(9002);
-
     t.join();
-
     } catch (websocketpp::exception const & e) {
         std::cout << e.what() << std::endl;
     }
