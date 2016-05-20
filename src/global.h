@@ -1,6 +1,11 @@
-#ifndef UAT_H
-#define UAT_H
+#ifndef GLOBAL_H
+#define GLOBAL_H
 
+#include <iostream>
+#include <set>
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
+#include <websocketpp/common/thread.hpp>
 using websocketpp::connection_hdl;
 using websocketpp::lib::placeholders::_1;
 using websocketpp::lib::placeholders::_2;

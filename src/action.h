@@ -1,6 +1,7 @@
 #ifndef ACTION_H
 #define ACTION_H
 
+#include "global.h"
 struct action {
     action(action_type t, connection_hdl h) : type(t), hdl(h) {}
     action(action_type t, connection_hdl h, server::message_ptr m)

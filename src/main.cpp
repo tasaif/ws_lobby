@@ -1,9 +1,4 @@
-#include <iostream>
-#include <set>
-
-#include <websocketpp/config/asio_no_tls.hpp>
-#include <websocketpp/server.hpp>
-#include <websocketpp/common/thread.hpp>
+#include "global.h"
 #include "lobbyserver.h"
 
 int main() {

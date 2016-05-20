@@ -11,6 +11,7 @@ include_directories(wslobby
 
 add_executable(wslobby
   src/main.cpp
+  src/lobbyserver.cpp
 )
 target_link_libraries(wslobby
   boost_system
