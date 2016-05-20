@@ -1,0 +1,5 @@
+Debian Instructions
+  Setting up Winsocketpp
+    Clone repo
+    cmake -DCMAKE_INSTALL_PREFIX:PATH=./opt/websocketpp
+    make install
