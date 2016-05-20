@@ -20,7 +20,7 @@ void Lobbyserver::run(uint16_t port) {
 void Lobbyserver::on_open(connection_hdl hdl) {
   {
     lock_guard<mutex> guard(m_action_lock);
-    m_actions.push(action(SUBSCRIBE,hdl));
+    m_actions.push(Action(SUBSCRIBE,hdl));
   }
   m_action_cond.notify_one();
 }
@@ -28,7 +28,7 @@ void Lobbyserver::on_open(connection_hdl hdl) {
 void Lobbyserver::on_close(connection_hdl hdl) {
   {
     lock_guard<mutex> guard(m_action_lock);
-    m_actions.push(action(UNSUBSCRIBE,hdl));
+    m_actions.push(Action(UNSUBSCRIBE,hdl));
   }
   m_action_cond.notify_one();
 }
@@ -36,7 +36,7 @@ void Lobbyserver::on_close(connection_hdl hdl) {
 void Lobbyserver::on_message(connection_hdl hdl, server::message_ptr msg) {
   {
     lock_guard<mutex> guard(m_action_lock);
-    m_actions.push(action(MESSAGE,hdl,msg));
+    m_actions.push(Action(MESSAGE,hdl,msg));
   }
   m_action_cond.notify_one();
 }
@@ -47,7 +47,7 @@ void Lobbyserver::process_messages() {
     while(m_actions.empty()) {
       m_action_cond.wait(lock);
     }
-    action a = m_actions.front();
+    Action a = m_actions.front();
     m_actions.pop();
     lock.unlock();
     if (a.type == SUBSCRIBE) {
