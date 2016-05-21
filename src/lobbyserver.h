@@ -3,10 +3,11 @@
 
 #include "action_type.h"
 #include "action.h"
+#include "connection_data.h"
 
 class Lobbyserver {
   private:
-    typedef std::set<connection_hdl,std::owner_less<connection_hdl> > con_list;
+    typedef std::map<connection_hdl, ConnectionData,std::owner_less<connection_hdl> > con_list;
     server m_server;
     con_list m_connections;
     std::queue<Action> m_actions;

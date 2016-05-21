@@ -1,6 +1,7 @@
 #include "lobbyserver.h"
 
 Lobbyserver::Lobbyserver() {
+  m_server.clear_access_channels(websocketpp::log::alevel::all);
   m_server.init_asio();
   m_server.set_open_handler(bind(&Lobbyserver::on_open,this,::_1));
   m_server.set_close_handler(bind(&Lobbyserver::on_close,this,::_1));
@@ -11,6 +12,7 @@ void Lobbyserver::run(uint16_t port) {
   m_server.listen(port);
   m_server.start_accept();
   try {
+    cout << "Running server..." << endl;
     m_server.run();
   } catch (const std::exception & e) {
     std::cout << e.what() << std::endl;
@@ -42,6 +44,8 @@ void Lobbyserver::on_message(connection_hdl hdl, server::message_ptr msg) {
 }
 
 void Lobbyserver::process_messages() {
+  Json::Reader reader;
+  Json::Value msg;   // will contains the root value after parsing.
   while(1) {
     unique_lock<mutex> lock(m_action_lock);
     while(m_actions.empty()) {
@@ -52,16 +56,20 @@ void Lobbyserver::process_messages() {
     lock.unlock();
     if (a.type == SUBSCRIBE) {
       lock_guard<mutex> guard(m_connection_lock);
-      m_connections.insert(a.hdl);
+      ConnectionData data;
+      m_connections[a.hdl] = data;
+      cout << "Client connected" << endl;
     } else if (a.type == UNSUBSCRIBE) {
       lock_guard<mutex> guard(m_connection_lock);
       m_connections.erase(a.hdl);
+      cout << "Client disconnected" << endl;
     } else if (a.type == MESSAGE) {
       lock_guard<mutex> guard(m_connection_lock);
       con_list::iterator it;
       for (it = m_connections.begin(); it != m_connections.end(); ++it) {
-        m_server.send(*it,a.msg);
+        m_server.send(it->first,a.msg);
       }
+      cout << "Message: " << a.msg->get_payload() << endl;
     } else {
     // undefined.
     }
