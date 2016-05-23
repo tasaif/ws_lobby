@@ -1,0 +1,6 @@
+Client connects to server
+Relationship between client and server is call/response besides broadcast messages
+Client requests:
+  connect
+  disconnect
+  broadcast

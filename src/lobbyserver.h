@@ -14,10 +14,12 @@ class Lobbyserver {
     mutex m_action_lock;
     mutex m_connection_lock;
     condition_variable m_action_cond;
+
   public:
     Lobbyserver();
     void run(uint16_t port);
     void on_open(connection_hdl hdl);
+    void close_con(websocketpp::connection_hdl, string);
     void on_close(connection_hdl hdl);
     void on_message(connection_hdl hdl, server::message_ptr msg);
     void process_messages();

@@ -27,6 +27,15 @@ void Lobbyserver::on_open(connection_hdl hdl) {
   m_action_cond.notify_one();
 }
 
+void Lobbyserver::close_con(websocketpp::connection_hdl hdl, string msg){
+  cout << "Terminating Connection" << endl;
+  websocketpp::lib::error_code ec;
+  m_server.close(hdl, websocketpp::close::status::normal, msg, ec);
+  if (ec) {
+    cout << ec.message() << endl;
+  }
+}
+
 void Lobbyserver::on_close(connection_hdl hdl) {
   {
     lock_guard<mutex> guard(m_action_lock);
@@ -45,7 +54,7 @@ void Lobbyserver::on_message(connection_hdl hdl, server::message_ptr msg) {
 
 void Lobbyserver::process_messages() {
   Json::Reader reader;
-  Json::Value msg;   // will contains the root value after parsing.
+  Json::Value msg_root;   // will contains the root value after parsing.
   while(1) {
     unique_lock<mutex> lock(m_action_lock);
     while(m_actions.empty()) {
@@ -61,6 +70,7 @@ void Lobbyserver::process_messages() {
       cout << "Client connected" << endl;
     } else if (a.type == UNSUBSCRIBE) {
       lock_guard<mutex> guard(m_connection_lock);
+      close_con(a.hdl, "UNSUBSCRIBING");
       m_connections.erase(a.hdl);
       cout << "Client disconnected" << endl;
     } else if (a.type == MESSAGE) {
@@ -68,6 +78,13 @@ void Lobbyserver::process_messages() {
       con_list::iterator it;
       for (it = m_connections.begin(); it != m_connections.end(); ++it) {
         m_server.send(it->first,a.msg);
+      }
+      bool parsingSuccessful = reader.parse(a.msg->get_payload(), msg_root);
+      if (parsingSuccessful){
+        cout << "Parsed successful" << endl;
+      } else {
+        cout << "Error: Unrecognized request." << endl;
+        on_close(a.hdl);
       }
       cout << "Message: " << a.msg->get_payload() << endl;
     } else {
