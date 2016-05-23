@@ -1,6 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <websocketpp/config/asio_no_tls.hpp>

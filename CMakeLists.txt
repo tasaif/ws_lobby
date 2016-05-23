@@ -18,6 +18,7 @@ add_executable(wslobby
   src/lobbyserver.cpp
   src/action.cpp
   src/connection_data.cpp
+  src/config.cpp
 )
 target_link_libraries(wslobby
   boost_system

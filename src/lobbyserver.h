@@ -7,6 +7,7 @@
 
 class Lobbyserver {
   private:
+    void init();
     typedef std::map<connection_hdl, ConnectionData,std::owner_less<connection_hdl> > con_list;
     server m_server;
     con_list m_connections;
@@ -14,9 +15,11 @@ class Lobbyserver {
     mutex m_action_lock;
     mutex m_connection_lock;
     condition_variable m_action_cond;
+    string validation_url;
 
   public:
     Lobbyserver();
+    Lobbyserver(string _validation_url);
     void run(uint16_t port);
     void on_open(connection_hdl hdl);
     void close_con(connection_hdl, string);

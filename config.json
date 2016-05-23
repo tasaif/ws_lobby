@@ -1,3 +1,4 @@
 {
-  "port": 8081
+  "port": 8081,
+  "validation_url": "http://localhost:3000/games/validate_lobby/"
 }

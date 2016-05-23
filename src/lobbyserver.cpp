@@ -1,11 +1,20 @@
 #include "lobbyserver.h"
 
-Lobbyserver::Lobbyserver() {
+void Lobbyserver::init(){
   m_server.clear_access_channels(websocketpp::log::alevel::all);
   m_server.init_asio();
   m_server.set_open_handler(bind(&Lobbyserver::on_open,this,::_1));
   m_server.set_close_handler(bind(&Lobbyserver::on_close,this,::_1));
   m_server.set_message_handler(bind(&Lobbyserver::on_message,this,::_1,::_2));
+}
+
+Lobbyserver::Lobbyserver() {
+  init();
+}
+
+Lobbyserver::Lobbyserver(string _validation_url) {
+  validation_url = _validation_url;
+  init();
 }
 
 void Lobbyserver::run(uint16_t port) {
@@ -105,7 +114,7 @@ void Lobbyserver::process_request(connection_hdl hdl, Json::Value msg){
     curlpp::Easy request;
     lobby_id = msg["lobby"].asInt();
     cout << "Requested to join lobby: " << lobby_id << endl;
-    url << "http://localhost:3000/games/validate_lobby/" << lobby_id;
+    url << validation_url << lobby_id;
     request.setOpt(new curlpp::options::Url(url.str()));
     stringified_verification << request;
     parsingSuccessful = reader.parse(stringified_verification.str(), verification_msg);
