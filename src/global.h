@@ -7,6 +7,10 @@
 #include <websocketpp/server.hpp>
 #include <websocketpp/common/thread.hpp>
 #include "json/json.h"
+#include <curlpp/cURLpp.hpp>
+#include <curlpp/Easy.hpp>
+#include <curlpp/Options.hpp>
+#include <curlpp/Exception.hpp>
 using namespace std;
 using websocketpp::connection_hdl;
 using websocketpp::lib::placeholders::_1;

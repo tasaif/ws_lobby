@@ -27,13 +27,17 @@ void Lobbyserver::on_open(connection_hdl hdl) {
   m_action_cond.notify_one();
 }
 
-void Lobbyserver::close_con(websocketpp::connection_hdl hdl, string msg){
+void Lobbyserver::close_con(connection_hdl hdl, string msg){
   cout << "Terminating Connection" << endl;
   websocketpp::lib::error_code ec;
   m_server.close(hdl, websocketpp::close::status::normal, msg, ec);
   if (ec) {
     cout << ec.message() << endl;
   }
+}
+
+void Lobbyserver::send_con(connection_hdl hdl, string msg){
+  m_server.get_con_from_hdl(hdl)->send(msg);
 }
 
 void Lobbyserver::on_close(connection_hdl hdl) {
@@ -75,13 +79,9 @@ void Lobbyserver::process_messages() {
       cout << "Client disconnected" << endl;
     } else if (a.type == MESSAGE) {
       lock_guard<mutex> guard(m_connection_lock);
-      con_list::iterator it;
-      for (it = m_connections.begin(); it != m_connections.end(); ++it) {
-        m_server.send(it->first,a.msg);
-      }
       bool parsingSuccessful = reader.parse(a.msg->get_payload(), msg_root);
       if (parsingSuccessful){
-        cout << "Parsed successful" << endl;
+        process_request(a.hdl, msg_root);
       } else {
         cout << "Error: Unrecognized request." << endl;
         on_close(a.hdl);
@@ -89,6 +89,73 @@ void Lobbyserver::process_messages() {
       cout << "Message: " << a.msg->get_payload() << endl;
     } else {
     // undefined.
+    }
+  }
+}
+
+void Lobbyserver::process_request(connection_hdl hdl, Json::Value msg){
+  if (msg["request"] == "connect"){
+    Json::StreamWriterBuilder wbuilder;
+    Json::Reader reader;
+    Json::Value verification_msg;
+    bool parsingSuccessful;
+    unsigned lobby_id;
+    ostringstream url;
+    ostringstream stringified_verification;
+    curlpp::Easy request;
+    lobby_id = msg["lobby"].asInt();
+    cout << "Requested to join lobby: " << lobby_id << endl;
+    url << "http://localhost:3000/games/validate_lobby/" << lobby_id;
+    request.setOpt(new curlpp::options::Url(url.str()));
+    stringified_verification << request;
+    parsingSuccessful = reader.parse(stringified_verification.str(), verification_msg);
+    if (parsingSuccessful){
+      if (verification_msg["error"].asBool()){
+        cout << "Error: lobby db responded with error" << endl;
+        cout << verification_msg["text"] << endl;
+        on_close(hdl);
+      } else {
+        cout << "Verified lobby request" << endl;
+        m_connections[hdl].lobby_id = lobby_id;
+        verification_msg["from"] = Json::Value("server");
+        verification_msg["type"] = Json::Value("response");
+        verification_msg["message"] = Json::Value("verified");
+        std::string confirmation = Json::writeString(wbuilder, verification_msg);
+        send_con(hdl, confirmation);
+        verification_msg["message"] = Json::Value("new_client");
+        string new_connection_message = Json::writeString(wbuilder, verification_msg);
+        broadcast(hdl, new_connection_message, lobby_id);
+      }
+    } else {
+      cout << "Error: lobby db responded with unparsible response" << endl;
+      cout << stringified_verification << endl;
+    }
+  } else if (msg["request"] == "disconnect"){
+  } else if (msg["request"] == "broadcast"){
+    Json::StreamWriterBuilder wbuilder;
+    msg["type"] = Json::Value("broadcast");
+    msg["from"] = Json::Value("neighbor");
+    msg["message"] = Json::Value("data");
+    std::string to_all = Json::writeString(wbuilder, msg);
+    broadcast(hdl, to_all, m_connections[hdl].lobby_id);
+  } else {
+    cout << "Error: Unrecognized request." << endl;
+    on_close(hdl);
+  }
+}
+
+void Lobbyserver::broadcast(connection_hdl src, string msg){
+  con_list::iterator it;
+  for (it = m_connections.begin(); it != m_connections.end(); ++it) {
+    send_con(it->first, msg);
+  }
+}
+
+void Lobbyserver::broadcast(connection_hdl src, string msg, int dst_lobby){
+  con_list::iterator it;
+  for (it = m_connections.begin(); it != m_connections.end(); ++it) {
+    if (m_connections[it->first].lobby_id == dst_lobby){
+      send_con(it->first, msg);
     }
   }
 }

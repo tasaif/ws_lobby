@@ -19,10 +19,14 @@ class Lobbyserver {
     Lobbyserver();
     void run(uint16_t port);
     void on_open(connection_hdl hdl);
-    void close_con(websocketpp::connection_hdl, string);
+    void close_con(connection_hdl, string);
+    void send_con(connection_hdl, string);
     void on_close(connection_hdl hdl);
     void on_message(connection_hdl hdl, server::message_ptr msg);
     void process_messages();
+    void process_request(connection_hdl hdl, Json::Value msg);
+    void broadcast(connection_hdl src, string);
+    void broadcast(connection_hdl src, string, int dst_lobby);
 };
 
 #endif

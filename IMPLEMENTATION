@@ -1,6 +1,19 @@
 Client connects to server
 Relationship between client and server is call/response besides broadcast messages
-Client requests:
-  connect
-  disconnect
-  broadcast
+Client messages:
+  type
+    connect
+    disconnect
+    broadcast
+
+Server messages
+  type
+    response
+    broadcast
+  from
+    neighbor
+    server
+  message
+    verified
+    new_client
+    data
