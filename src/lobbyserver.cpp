@@ -84,8 +84,13 @@ void Lobbyserver::process_messages() {
     } else if (a.type == UNSUBSCRIBE) {
       lock_guard<mutex> guard(m_connection_lock);
       close_con(a.hdl, "UNSUBSCRIBING");
+      int cid = m_connections[a.hdl].client_id;
+      int lid = m_connections[a.hdl].lobby_id;
       m_connections.erase(a.hdl);
       cout << "Client disconnected" << endl;
+      if (lid != -1){
+        notify_the_family(cid, lid);
+      }
     } else if (a.type == MESSAGE) {
       lock_guard<mutex> guard(m_connection_lock);
       bool parsingSuccessful = reader.parse(a.msg->get_payload(), msg_root);
@@ -109,6 +114,7 @@ void Lobbyserver::process_request(connection_hdl hdl, Json::Value msg){
     Json::Value verification_msg;
     bool parsingSuccessful;
     unsigned lobby_id;
+    int client_id = rand() % RAND_MAX;
     ostringstream url;
     ostringstream stringified_verification;
     curlpp::Easy request;
@@ -126,11 +132,19 @@ void Lobbyserver::process_request(connection_hdl hdl, Json::Value msg){
       } else {
         cout << "Verified lobby request" << endl;
         m_connections[hdl].lobby_id = lobby_id;
+        m_connections[hdl].client_id = client_id;
+        verification_msg["id"] = Json::Value(client_id);
         verification_msg["from"] = Json::Value("server");
         verification_msg["type"] = Json::Value("response");
         verification_msg["message"] = Json::Value("verified");
+        con_list::iterator it;
+        for (it = m_connections.begin(); it != m_connections.end(); ++it) {
+          int dst_id = m_connections[it->first].client_id;
+          verification_msg["client_list"].append(Json::Value(dst_id));
+        }
         std::string confirmation = Json::writeString(wbuilder, verification_msg);
         send_con(hdl, confirmation);
+        //Notify clients of new connection
         verification_msg["message"] = Json::Value("new_client");
         string new_connection_message = Json::writeString(wbuilder, verification_msg);
         broadcast(hdl, new_connection_message, lobby_id);
@@ -139,12 +153,15 @@ void Lobbyserver::process_request(connection_hdl hdl, Json::Value msg){
       cout << "Error: lobby db responded with unparsible response" << endl;
       cout << stringified_verification << endl;
     }
-  } else if (msg["request"] == "disconnect"){
+  } else if (msg["request"] == "send"){
+    Json::StreamWriterBuilder wbuilder;
+    msg["from"] = Json::Value("neighbor");
+    std::string to_one = Json::writeString(wbuilder, msg);
+    send(hdl, to_one, m_connections[hdl].lobby_id, msg["id"].asInt());
   } else if (msg["request"] == "broadcast"){
     Json::StreamWriterBuilder wbuilder;
-    msg["type"] = Json::Value("broadcast");
     msg["from"] = Json::Value("neighbor");
-    msg["message"] = Json::Value("data");
+    msg["id"] = Json::Value(m_connections[hdl].client_id);
     std::string to_all = Json::writeString(wbuilder, msg);
     broadcast(hdl, to_all, m_connections[hdl].lobby_id);
   } else {
@@ -153,18 +170,48 @@ void Lobbyserver::process_request(connection_hdl hdl, Json::Value msg){
   }
 }
 
-void Lobbyserver::broadcast(connection_hdl src, string msg){
+void Lobbyserver::broadcast(connection_hdl src, string msg, int dst_lobby){
   con_list::iterator it;
+  int src_id = m_connections[src].client_id;
   for (it = m_connections.begin(); it != m_connections.end(); ++it) {
-    send_con(it->first, msg);
+    if (m_connections[it->first].lobby_id == dst_lobby){
+      int dst_id = m_connections[it->first].client_id;
+      if (src_id != dst_id){
+        send_con(it->first, msg);
+      }
+    }
   }
 }
 
-void Lobbyserver::broadcast(connection_hdl src, string msg, int dst_lobby){
+void Lobbyserver::broadcast(string msg, int dst_lobby){
   con_list::iterator it;
   for (it = m_connections.begin(); it != m_connections.end(); ++it) {
     if (m_connections[it->first].lobby_id == dst_lobby){
       send_con(it->first, msg);
     }
   }
+}
+
+void Lobbyserver::send(connection_hdl src, string msg, int dst_lobby, int dst_id){
+  con_list::iterator it;
+  for (it = m_connections.begin(); it != m_connections.end(); ++it) {
+    if (m_connections[it->first].lobby_id == dst_lobby){
+      int check_id = m_connections[it->first].client_id;
+      int check_lobby = m_connections[it->first].lobby_id;
+      if (check_id == dst_id && check_lobby == dst_lobby){
+        send_con(it->first, msg);
+        break;
+      }
+    }
+  }
+}
+
+void Lobbyserver::notify_the_family(int the_departed, int dst_lobby){
+  Json::StreamWriterBuilder wbuilder;
+  Json::Value notification_msg;
+  notification_msg["from"] = Json::Value("server");
+  notification_msg["message"] = Json::Value("client_disconnected");
+  notification_msg["id"] = Json::Value(the_departed);
+  std::string to_all = Json::writeString(wbuilder, notification_msg);
+  broadcast(to_all, dst_lobby);
 }

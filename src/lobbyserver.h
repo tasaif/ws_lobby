@@ -28,8 +28,10 @@ class Lobbyserver {
     void on_message(connection_hdl hdl, server::message_ptr msg);
     void process_messages();
     void process_request(connection_hdl hdl, Json::Value msg);
-    void broadcast(connection_hdl src, string);
+    void broadcast(string, int dst_lobby);
     void broadcast(connection_hdl src, string, int dst_lobby);
+    void send(connection_hdl src, string, int dst_lobby, int dst_id);
+    void notify_the_family(int the_departed, int dst_lobby);
 };
 
 #endif
